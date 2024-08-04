@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest, f_classif
@@ -18,7 +18,7 @@ feature_selection_k = 10  # Default value for feature selection
 
 def load_data():
     global dataset
-    file_path = filedialog.askopenfilename()
+    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
     if file_path:
         dataset = load_csv(file_path)
         if dataset is not None:
@@ -42,6 +42,7 @@ def preprocess_data(df):
     df['Inv-Nodes'] = pd.to_numeric(df['Inv-Nodes'], errors='coerce')
 
     df = df.dropna(subset=['Tumor Size (cm)', 'Inv-Nodes'])
+
     df = df.copy()
     df['Tumor Size Category'] = pd.cut(df['Tumor Size (cm)'], bins=[0, 2, 5, 10], labels=['Small', 'Medium', 'Large'])
     df['Inv-Nodes Category'] = pd.cut(df['Inv-Nodes'], bins=[0, 1, 5, 10], labels=['Low', 'Medium', 'High'])
@@ -100,13 +101,15 @@ def run_model():
     X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.2, random_state=42)
 
     # Train the model
-    rfc = RandomForestClassifier(n_estimators=100, random_state=42)
-    rfc.fit(X_train, y_train)
+    logistic_regression = LogisticRegression(random_state=42)
+    logistic_regression.fit(X_train, y_train)
 
     # Make predictions
-    y_pred = rfc.predict(X_test)
+    y_pred = logistic_regression.predict(X_test)
 
     # Evaluate the model
+    accuracy = accuracy_score(y_test, y_pred)
+    report = classification_report(y_test, y_pred)
     matrix = confusion_matrix(y_test, y_pred)
 
     # Clear previous plots
@@ -171,24 +174,6 @@ def run_model():
         ax.set_ylabel('Actual')
         ax.set_title('Confusion Matrix')
         plots.append(fig)
-
-        # Feature Importance Plot
-        importances = rfc.feature_importances_
-        selected_features = X.columns[selector.get_support()]
-        print(f"Selected Features: {selected_features}")  # Debug statement
-        print(f"Importances: {importances}")  # Debug statement
-
-        if len(selected_features) == len(importances):
-            feature_importances = pd.DataFrame({'Feature': selected_features, 'Importance': importances}).sort_values(by='Importance', ascending=False)
-
-            fig, ax = plt.subplots(figsize=fig_size)
-            sns.barplot(x='Importance', y='Feature', data=feature_importances, ax=ax, palette='viridis')
-            ax.set_title("Feature Importances")
-            ax.set_xlabel("Importance")
-            ax.set_ylabel("Feature")
-            plots.append(fig)
-        else:
-            print(f"Feature count mismatch: Selected Features ({len(selected_features)}) vs Importances ({len(importances)})")
 
         # Display all plots in the plot_frame
         for plot in plots:
